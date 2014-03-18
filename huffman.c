@@ -29,6 +29,7 @@ void clean_table(table_t * t);
 void resize_table(table_t * t);	//Only to be used on clean tables.
 void sort_table(table_t * t);
 int match_first_n_bits(int n, char a, char b);
+int match_last_n_bits(int n, char a, char b);
 
 int main(int argc, char **argv)
 {
@@ -64,7 +65,7 @@ int match_first_n_bits(int n, char a, char b){
 }
 
 void set_keys(table_t *t){
-	
+		
 }
 
 void sort_table(table_t * t)
@@ -234,8 +235,8 @@ table_t *new_table()
     table_t *new;
     new = malloc(sizeof(table_t));
     new->size = 0;
-    new->key = malloc(sizeof(char) * 256);
-    new->val = malloc(sizeof(char) * 256);
+    new->key = calloc(256,sizeof(char));
+    new->val = calloc(256,sizeof(char));
     new->counts = calloc(256, sizeof(int));
     value_table(new);
     return new;
