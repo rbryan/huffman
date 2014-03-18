@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=-Wall -O2 -g
+CFLAGS=-Wall -O0 -g
 
 test: run Makefile huffman.c
 	$(CC) $(CFLAGS) --analyze huffman.c 
