@@ -25,10 +25,11 @@ struct node {
     int weight;
     int bits;
     char bstring;
-    int index; //index when sorted by freq
+    int index;			//index when sorted by freq
     struct node *l;
     struct node *r;
     struct node *n;
+    struct node *p;
 };
 typedef struct node node_t;
 
@@ -51,8 +52,16 @@ int match_first_n_bits(int n, char a, char b);
 int match_last_n_bits(int n, char a, char b);
 void sort_table_by_freq(table_t * t);
 void sort_table_by_char(table_t * t);
-node_t *build_huffman_queue(table_t *t);
+node_t *build_huffman_queue(table_t * t);
 node_t *new_node(int weight, int index);
+void print_huffman_queue(node_t * q);
+node_t *pop_node(node_t * n);
+node_t *pop_lowest(node_t * q);
+int get_queue_length(node_t * q);
+void append_node(node_t * q, node_t * n);
+void tree_transform(node_t * q);
+node_t *build_huffman_tree(node_t *q);
+void free_node_struct_struct(node_t *n); //frees a structure made of nodes.
 
 int main(int argc, char **argv)
 {
@@ -64,17 +73,20 @@ int main(int argc, char **argv)
 
     data_t *d;
     table_t *t;
+    node_t *q;
 
     t = new_table();
     d = load_file(argv[1]);
-    print_data(d);
+    //print_data(d);
     count_bytes(d, t);
     clean_table(t);
     resize_table(t);
     sort_table_by_freq(t);
     print_table(t);
-    sort_table_by_char(t);
-    print_table(t);
+    q = build_huffman_queue(t);
+    print_huffman_queue(q);
+    build_huffman_tree(q);
+    printf("%d\n", get_queue_length(q));
     output_data("output", d);
     exit(0);
 }
@@ -93,38 +105,147 @@ node_t *new_node(int weight, int index)
     new->l = NULL;
     new->r = NULL;
     new->n = NULL;
+    new->p = NULL;
     return new;
 }
 
-node_t *build_huffman_queue(table_t *t){
-	node_t *branches=NULL;
-	node_t *prev;
-	int i;
-	int size;
-	int *c;
+void free_node_struct(node_t *n){
+	free_node_struct(n->l);
+	free_node_struct(n->r);
+	free_node_struct(n->p);
+	free_node_struct(n->n);
+	free(n);
+}
+
+node_t *build_huffman_queue(table_t * t)
+{
+    node_t *branches;
+    node_t *prev;
+    int i;
+    int size;
+    int *c;
+
+    c = t->counts;
+    size = t->size;
+
+    //
+    //Build a linked list of nodes to work with.
+    //
+
+    //The first node doesn't matter.
+    //This makes things easier in transformations.
+    branches = new_node(-1, -1);
+    prev = branches;
+
+    for (i = 0; i < size; i++) {
+	node_t *new;
+	new = new_node(c[i], i);
+	prev->n = new;
+	new->p = prev;
+	prev = new;
+    }
+    return branches;
+}
+
+void print_huffman_queue(node_t * q)
+{
+    q = q->n;
+    if (q == NULL)
+	return;
+    while (q->n != NULL) {
+	printf("%d\n", q->weight);
+	q = q->n;
+    }
+    printf("%d\n", q->weight);
+
+}
+
+node_t *pop_node(node_t * n)
+{
+    if (n->n != NULL)
+	n->n->p = n->p;
+    if (n->p != NULL)
+	n->p->n = n->n;
+    return n;
+}
+
+int get_queue_length(node_t * q)
+{
+    int l = 0;
+    while (q->n != NULL) {
+	l++;
+	q = q->n;
+    }
+    return l;
+}
+
+node_t *build_huffman_tree(node_t *q){
 	
-	c = t->counts;
-	size = t->size;
-
-	//
-	//Build a linked list of nodes to work with.
-	//
-
-	for(i=0; i < size; i++){
-		node_t *new;
-		new = new_node(c[i],i);
-		if(branches == NULL){
-			branches = new;
-		}else{
-			prev->n = new;	
-		}
-		prev = new;
+	while(get_queue_length(q) > 1){
+		tree_transform(q);
 	}
-	return branches;
+	populate_bstrings(q->n,0);
+	return q->n;
+}
+
+void tree_transform(node_t * q)
+{
+    node_t *a;
+    node_t *b;
+    node_t *new;
+
+    a = pop_lowest(q);
+    b = pop_lowest(q);
+    
+    new = malloc(sizeof(node_t));
+    
+    new->weight = a->weight + b->weight;
+    new->l = a;
+    new->r = b;
+    
+    append_node(q, new);
+}
+
+void append_node(node_t * q, node_t * n)
+{
+    while (q->n != NULL) {
+	q = q->n;
+    }
+    n->p = q;
+    q->n = n;
+    return;
 }
 
 
+node_t *pop_lowest(node_t * q)
+{
+    node_t *l;
 
+    q = q->n;
+
+    l = q;
+
+    if (q == NULL)
+	return NULL;
+
+    while (1) {
+	if (q->weight < l->weight)
+	    l = q;
+	if (q->n == NULL)
+	    break;
+	q = q->n;
+    }
+
+    return pop_node(l);
+}
+
+
+void populate_bstrings(node_t *t,int d){
+	if(t->r != NULL)
+		populate_bstrings(t->r,d+1);
+	if(t->l != NULL)
+		populate_bstrings(t->l,d+1);
+}
 //
 //The code to follow is tree free.
 //
