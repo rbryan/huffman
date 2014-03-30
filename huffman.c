@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define 	LEFT 	0
+#define 	RIGHT 	0
+
 //
 //Structures
 //
@@ -60,8 +63,9 @@ node_t *pop_lowest(node_t * q);
 int get_queue_length(node_t * q);
 void append_node(node_t * q, node_t * n);
 void tree_transform(node_t * q);
-node_t *build_huffman_tree(node_t *q);
-void free_node_struct_struct(node_t *n); //frees a structure made of nodes.
+node_t *build_huffman_tree(node_t * q,table_t *t);
+void free_node_struct_struct(node_t * n);	//frees a structure made of nodes.
+void populate_bstrings(node_t * t, table_t * l, int d, char str);
 
 int main(int argc, char **argv)
 {
@@ -85,8 +89,8 @@ int main(int argc, char **argv)
     print_table(t);
     q = build_huffman_queue(t);
     print_huffman_queue(q);
-    build_huffman_tree(q);
-    printf("%d\n", get_queue_length(q));
+	build_huffman_tree(q,t);
+	print_table(t);
     output_data("output", d);
     exit(0);
 }
@@ -109,12 +113,13 @@ node_t *new_node(int weight, int index)
     return new;
 }
 
-void free_node_struct(node_t *n){
-	free_node_struct(n->l);
-	free_node_struct(n->r);
-	free_node_struct(n->p);
-	free_node_struct(n->n);
-	free(n);
+void free_node_struct(node_t * n)
+{
+    free_node_struct(n->l);
+    free_node_struct(n->r);
+    free_node_struct(n->p);
+    free_node_struct(n->n);
+    free(n);
 }
 
 node_t *build_huffman_queue(table_t * t)
@@ -179,13 +184,14 @@ int get_queue_length(node_t * q)
     return l;
 }
 
-node_t *build_huffman_tree(node_t *q){
-	
-	while(get_queue_length(q) > 1){
-		tree_transform(q);
-	}
-	populate_bstrings(q->n,0);
-	return q->n;
+node_t *build_huffman_tree(node_t * q,table_t *t)
+{
+
+    while (get_queue_length(q) > 1) {
+	tree_transform(q);
+    }
+    populate_bstrings(q->n,t, -1,0 );
+    return q->n;
 }
 
 void tree_transform(node_t * q)
@@ -196,13 +202,13 @@ void tree_transform(node_t * q)
 
     a = pop_lowest(q);
     b = pop_lowest(q);
-    
+
     new = malloc(sizeof(node_t));
-    
+
     new->weight = a->weight + b->weight;
     new->l = a;
     new->r = b;
-    
+
     append_node(q, new);
 }
 
@@ -240,12 +246,22 @@ node_t *pop_lowest(node_t * q)
 }
 
 
-void populate_bstrings(node_t *t,int d){
-	if(t->r != NULL)
-		populate_bstrings(t->r,d+1);
-	if(t->l != NULL)
-		populate_bstrings(t->l,d+1);
+void populate_bstrings(node_t * t, table_t * l, int d, char str)
+{
+    if (t == NULL)
+	return;
+    int i;
+
+    i = t->index;
+    if(i != -1)
+    	l->key[i] = str;
+
+    if (t->r != NULL)
+	populate_bstrings(t->r, l, d + 1, str ^ 1 << (8 - d));
+    if (t->l != NULL)
+	populate_bstrings(t->l, l, d + 1, str);
 }
+
 //
 //The code to follow is tree free.
 //
