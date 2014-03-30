@@ -26,7 +26,6 @@ struct node {
     long int pos;
     int len;
     long int saves;
-    char *str;
 };
 typedef struct node node_t;
 
@@ -47,6 +46,8 @@ node_t *found(node_t * h, node_t * n, data_t * d);
 void append_node(node_t * h, node_t * n);
 void print_word_list(node_t * h, data_t * d);
 void set_savings(node_t * h, data_t * d);
+data_t *build_output(data_t * id, node_t * b);
+data_t *decompress(data_t * id);
 
 int main(int argc, char **argv)
 {
@@ -54,26 +55,111 @@ int main(int argc, char **argv)
 	fprintf(stderr, "Usage: run {x|c} <input_file>\n");
 	exit(1);
     }
-
-    data_t *data;
+    if (strcmp(argv[1], "c") == 0) {
+	data_t *data;
 //    data_t *ndata;
-    node_t *l;
+	node_t *l;
 
-    data = load_file(argv[1]);
+	data = load_file(argv[2]);
 //    print_data(data);
 //    printf("%d\n", get_symbol(data));
 //    printf("%d\n", UINT16_MAX);
-    l = get_word_list(data);
-    set_savings(l, data);
+	l = get_word_list(data);
+	set_savings(l, data);
 //    print_word_list(l,data);
-    get_best(l, data);
+	l = get_best(l, data);
+	data = build_output(data, l);
+	output_data("output", data);
 //    output_data("output", data);
+    } else if (strcmp(argv[1], "x") == 0) {
+	data_t *data;
+	data = load_file(argv[2]);
+	data = decompress(data);
+	output_data("decompressed", data);
+    }
     exit(0);
 }
 
-data_t *build_output(data_t * i, node_t * b)
+data_t *decompress(data_t * id)
 {
+    data_t *out;
+    long int i;			//source location ptr
+    long int j;			//output location ptr
+    char *base;
+    uint16_t sym;
+    int len;
+    char *str;
+    char *data;
 
+    data = id->data;
+
+    out = new_data();
+
+    out->data = malloc(2 * id->size);
+
+    memcpy(&sym,id->data,2);
+    len = *(data + 2);
+    str = data + 3;
+    printf("//////////////////////\n"
+	   "sym:\t%d\tlen\t%d\n" "//////////////////////\n", sym,len);
+
+    base = data + 3;
+    base = base + *(base - 1);
+
+    for (i = 0, j = 0; i < id->size-3-len; i++, j++) {
+	if (i < id->size-4-len && memcmp(&sym,base+i,2)==0) {
+	    memcpy(out->data + j, str, len);
+	    i++;		//the for loop makes up the remainder
+	    j += len - 1;
+	} else {
+	    *(out->data + j) = *(base + i);
+	}
+    }
+    out->size = j;
+    return out;
+
+}
+
+data_t *build_output(data_t * id, node_t * b)
+{
+    data_t *od;
+    char *base;
+    uint16_t sym;
+    long int i;
+    long int j;
+    char *rep;
+
+    od = new_data();
+    od->data = malloc(id->size * 2);
+
+    sym = get_symbol(id);
+    printf("//////////////////////\n"
+	   "sym:\t%d\n" "//////////////////////\n", sym);
+
+    memcpy(od->data,(void *)&sym,2);	//adds symbol to the header
+
+    *(od->data + 2) = (char) b->len;	//adds length of replacement to header
+
+    rep = (od->data + 3);
+    memcpy(rep, id->data + b->pos, b->len);	//adds replacement string to header
+
+    base = rep + b->len;
+
+
+    for (i = 0, j = 0; i < id->size; i++, j++) {
+	if (memcmp(id->data + i, rep, b->len) == 0) {
+//	    *((uint16_t *) base + j) = sym;
+	    memcpy(base+j,&sym,2);
+	    j++;		//Only add one; for loop makes up diff
+	    i += b->len - 1;	//See above
+	} else {
+	    *(base + j) = *(id->data + i);
+	}
+    }
+
+    od->size = b->len + 3 + j;
+
+    return od;
 }
 
 void set_savings(node_t * h, data_t * d)
@@ -110,12 +196,6 @@ node_t *get_best(node_t * l, data_t * d)
 	}
 	l = l->n;
     }
-    best->str = malloc(best->len);
-    printf("%s\n", d->data + best->pos);
-    memcpy(best->str, d->data + best->pos, best->len);
-    fwrite(best->str, best->len, 1, stdout);
-    printf("%d\n", best->len);
-    putchar('\n');
     return best;
 }
 
@@ -223,6 +303,10 @@ uint16_t get_symbol(data_t * d)
     }
     if (none == 1)
 	return 0;
+    if (a >> 8 == 0)
+	a = a | 1 << 16;
+    if (a << 8 == 0)
+	a = a | 1;
     return a;
 }
 
@@ -295,6 +379,5 @@ node_t *new_node(long int pos, long int len)
     new->len = len;
     new->saves = 0;
     new->n = NULL;
-    new->str = NULL;
     return new;
 }
