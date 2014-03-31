@@ -5,7 +5,7 @@
 
 
 //LMAX and LMIN are inclusive range boundaries
-#define LMAX	4
+#define LMAX	3
 #define LMIN	3
 
 #define MIN(a,b)	((a) < (b)) ? (a) : (b)
@@ -196,6 +196,11 @@ node_t *get_best(node_t * l, data_t * d)
 	}
 	l = l->n;
     }
+    putchar('|');
+    fwrite(d->data+best->pos,best->len,1,stdout);
+    putchar('|');
+    putchar('\n');
+    printf("Saves: %ld\n",best->saves);
     return best;
 }
 
@@ -227,17 +232,17 @@ node_t *get_word_list(data_t * d)
     dlen = d->size;
 
     for (i = LMIN; i <= LMAX; i++) {
-	printf("Processing Len:\t%ld\n", i);
+	//printf("Processing Len:\t%ld\n", i);
 	for (j = 0; j < dlen - i; j++) {
 	    node_t *f;
 	    node_t *new;
 	    new = new_node(j, i);
 
-	    //Display Progress
+	    /*Display Progress
 	    if (j % 1000 == 0) {
 		printf("Percent done:\t%f\n", j * 1.0 / (dlen - i));
 	    }
-	    //
+	    */
 
 	    /*
 	       fwrite(d->data+j,i,1,stdout);
